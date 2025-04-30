@@ -1,0 +1,41 @@
+WITH months AS (
+    SELECT 1 AS month UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL
+    SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL
+    SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL
+    SELECT 10 UNION ALL SELECT 11 UNION ALL SELECT 12
+),
+customers AS (
+    SELECT DISTINCT customer_id FROM customer_salary
+),
+all_combinations AS (
+    SELECT c.customer_id, m.month
+    FROM customers c
+    CROSS JOIN months m
+),
+merged_data AS (
+    SELECT ac.customer_id, ac.month, cs.overtime_amount
+    FROM all_combinations ac
+    LEFT JOIN customer_salary cs 
+      ON ac.customer_id = cs.customer_id AND ac.month = cs.month
+),
+-- Recursive part: carry forward overtime
+cte AS (
+    SELECT 
+        customer_id, 
+        month, 
+        COALESCE(overtime_amount, 0) AS overtime_amount
+    FROM merged_data
+    WHERE month = 1
+
+    UNION ALL
+
+    SELECT 
+        m.customer_id,
+        m.month,
+        COALESCE(m.overtime_amount, c.overtime_amount) AS overtime_amount
+    FROM merged_data m
+    JOIN cte c 
+      ON m.customer_id = c.customer_id AND m.month = c.month + 1
+)
+SELECT * FROM cte
+ORDER BY customer_id, month;
